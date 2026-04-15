@@ -1,109 +1,109 @@
-# garmin-workouts — плагін для Claude
+# garmin-workouts — Claude Plugin
 
-Створюй, плануй та керуй структурованими бігові тренуваннями на **Garmin Connect** за допомогою звичайної мови всередині Claude (Cowork або Claude Code).
+Create, schedule and manage structured running workouts on **Garmin Connect** using natural language inside Claude (Cowork or Claude Code).
 
-> **Приклад:** "Створи легкий біг 8 км в зоні пульсу 2 і постав на завтра"  
-> Claude сам будує повне структуроване тренування і відправляє його прямо в твій Garmin-календар.
+> **Example:** "Create an easy 8km run in HR zone 2 and schedule it for tomorrow"  
+> Claude builds the full structured workout and pushes it straight to your Garmin calendar.
 
 ---
 
-## Можливості
+## What you get
 
-| Функція | Опис |
+| Capability | Description |
 |---|---|
-| Створення тренувань | Легкий біг, темп, інтервали, довгий біг — просто опиши словами |
-| Планування в календар | Додає тренування на конкретну дату в Garmin Connect |
-| Перегляд тренувань | Список всіх збережених тренувань з ID |
-| Видалення тренувань | Видаляє тренування з Garmin Connect |
+| Create workouts | Easy runs, tempo, intervals, long runs — just describe in plain language |
+| Schedule to calendar | Push workout to a specific date on Garmin Connect |
+| List saved workouts | See all workouts with IDs |
+| Delete workouts | Remove workouts from Garmin Connect |
 
-Підтримує: розминку / заминку, цілі по зонах пульсу, повторні інтервали (наприклад 5×1 км), кроки по часу та відстані.
-
----
-
-## Вимоги
-
-- macOS (перевірено на macOS 14+)
-- Python 3.12 (перевір: `python3.12 --version` — якщо нема, встанови з [python.org](https://www.python.org/downloads/))
-- Додаток Claude (Cowork) з підключеним **Garmin MCP-конектором**
+Supports: warmup / cooldown, HR zone targets, repeat intervals (e.g. 5×1km), time-based and distance-based steps.
 
 ---
 
-## Встановлення
+## Requirements
 
-### Крок 1 — Підключи Garmin MCP-конектор у Claude
+- macOS (tested on macOS 14+)
+- Python 3.12 (`python3.12 --version` to check — install via [python.org](https://www.python.org/downloads/) if missing)
+- Claude desktop app (Cowork mode) with the **Garmin MCP connector** connected
 
-Claude → Settings → Connectors → знайди **Garmin** → підключи зі своїм акаунтом Garmin.
+---
 
-Це створює OAuth-токени в `~/.garth`, які плагін використовує для авторизації. Без цього кроку плагін не працюватиме.
+## Installation
 
-### Крок 2 — Запусти скрипт встановлення
+### Step 1 — Connect the Garmin MCP Connector in Claude
+
+In Claude → Settings → Connectors → find **Garmin** → connect with your Garmin account credentials.
+
+This creates `~/.garth` OAuth tokens that this plugin reuses. Without this step the plugin won't work.
+
+### Step 2 — Run the install script
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/bvg123/garmin-workouts/main/install.sh | bash
 ```
 
-Або вручну:
+Or manually:
 
 ```bash
-# 1. Клонуй репозиторій
+# 1. Clone the repo
 git clone https://github.com/bvg123/garmin-workouts.git
 cd garmin-workouts
 
-# 2. Запусти встановлення
+# 2. Run install
 bash install.sh
 ```
 
-Скрипт автоматично:
-- Створить Python venv у `~/.garmin-venv`
-- Встановить залежності (`mcp[cli]`, `garminconnect`, `pydantic`)
-- Скопіює MCP-сервер у `~/.garmin-workouts/garmin_workouts_mcp.py`
-- Збере файл `garmin-workouts.plugin` готовий до встановлення
+The script will:
+- Create a Python venv at `~/.garmin-venv`
+- Install all dependencies (`mcp[cli]`, `garminconnect`, `pydantic`)
+- Copy the MCP server to `~/.garmin-workouts/garmin_workouts_mcp.py`
+- Build a ready-to-install `garmin-workouts.plugin` file in the current folder
 
-### Крок 3 — Встанови плагін у Claude
+### Step 3 — Install the plugin in Claude
 
-Відкрий файл `garmin-workouts.plugin` — Claude покаже кнопку **Install plugin**. Натисни її.
+Open the `garmin-workouts.plugin` file — Claude will show an **Install plugin** button. Click it.
 
-Готово! За потреби перезапусти Claude.
-
----
-
-## Приклади запитів
-
-```
-Створи легкий біг 8 км в зоні 2 і постав на завтра
-```
-```
-Темповий біг 10 км на суботу
-```
-```
-Інтервальне тренування: 5×1 км в зоні 4 з відновленням 400 м, поставити на п'ятницю
-```
-```
-Довгий біг 90 хвилин в зоні 2
-```
-```
-Покажи всі мої збережені тренування
-```
-```
-Видали тренування 12345678
-```
+Done! Restart Claude if needed.
 
 ---
 
-## Як це працює
+## Usage examples
 
-Плагін надає MCP-сервер (`garmin_workouts_mcp.py`), який:
-1. Зчитує OAuth-токени Garmin з `~/.garth` (створені основним Garmin MCP-конектором)
-2. Перетворює параметри тренування у формат Garmin Connect API
-3. Завантажує тренування і за потреби ставить його в календар
-
-Скіл `create-garmin-workout` навчає Claude розбирати описи тренувань та підбирати правильні параметри API (зони пульсу, типи кроків, відстані, тривалості).
+```
+Create an easy run 8km in zone 2 and schedule it for tomorrow
+```
+```
+Make a tempo run 10km for Saturday
+```
+```
+Build an interval session: 5×1km in zone 4 with 400m recovery, schedule for Friday
+```
+```
+Long run 90 minutes in zone 2
+```
+```
+Show me all my saved workouts
+```
+```
+Delete workout 12345678
+```
 
 ---
 
-## Оновлення
+## How it works
 
-Щоб отримати нову версію:
+This plugin provides an MCP server (`garmin_workouts_mcp.py`) that:
+1. Reads your Garmin OAuth tokens from `~/.garth` (created by the main Garmin MCP connector)
+2. Translates structured workout parameters into the Garmin Connect API format
+3. Uploads the workout and optionally schedules it on the calendar
+
+The `create-garmin-workout` skill teaches Claude how to parse natural language workout descriptions and map them to the correct API parameters (HR zones, step types, distances, durations).
+
+---
+
+## Updating
+
+To get the latest version:
 
 ```bash
 cd garmin-workouts
@@ -111,20 +111,20 @@ git pull
 bash install.sh
 ```
 
-Потім перевстанови оновлений `.plugin` файл у Claude.
+Then reinstall the updated `.plugin` file in Claude.
 
 ---
 
-## Вирішення проблем
+## Troubleshooting
 
 **"No saved Garmin session found at ~/.garth"**  
-→ Перепідключи Garmin MCP-конектор у Claude Settings.
+→ Reconnect the Garmin MCP connector in Claude Settings.
 
 **"Failed to authenticate with saved tokens"**  
-→ Токени могли протерміінуватись. Перепідключи Garmin MCP-конектор щоб оновити їх.
+→ The tokens may have expired. Reconnect the Garmin MCP connector to refresh them.
 
 **"python3.12: command not found"**  
-→ Встанови Python 3.12 з [python.org](https://www.python.org/downloads/macos/).
+→ Install Python 3.12 from [python.org](https://www.python.org/downloads/macos/).
 
-**Плагін не з'являється після встановлення**  
-→ Перезапусти додаток Claude.
+**Plugin not appearing after install**  
+→ Restart the Claude desktop app.
