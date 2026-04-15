@@ -1,0 +1,15 @@
+{
+  "name": "garmin-workouts",
+  "version": "0.2.0",
+  "description": "Create, schedule and manage workouts on Garmin Connect using natural language. Uses OAuth tokens from the main Garmin MCP.",
+  "author": {
+    "name": "Vadym"
+  },
+  "keywords": [
+    "garmin",
+    "workout",
+    "running",
+    "training",
+    "fitness"
+  ]
+}
