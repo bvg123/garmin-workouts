@@ -69,7 +69,11 @@ _STEP_TYPES = {
     "rest":     {"stepTypeId": 5, "stepTypeKey": "rest",     "displayOrder": 5},
 }
 
-_RUNNING_SPORT = {"sportTypeId": 1, "sportTypeKey": "running", "displayOrder": 1}
+_SPORT_TYPES = {
+    "running":       {"sportTypeId": 1,  "sportTypeKey": "running",       "displayOrder": 1},
+    "trail_running": {"sportTypeId": 6,  "sportTypeKey": "trail_running",  "displayOrder": 1},
+}
+_RUNNING_SPORT = _SPORT_TYPES["running"]  # default / backwards-compat
 
 # Approximate HR zone BPM ranges (Garmin will use user's personal zones when
 # zoneNumber is provided; BPM values serve as a sensible fallback display).
@@ -81,6 +85,23 @@ def _build_target(
     hr_bpm_low: Optional[float],
     hr_bpm_high: Optional[float],
 ) -> dict:
+    """Return a dict of fields that live at the step level, not nested inside targetType.
+
+    Garmin's step DTO has targetType, targetValueOne, targetValueTwo, targetValueUnit,
+    and zoneNumber as SIBLING fields. Nesting the value fields inside targetType (as
+    earlier versions did) causes them to be silently dropped on upload.
+    """
+    no_target = {
+        "targetType": {
+            "workoutTargetTypeId": 1,
+            "workoutTargetTypeKey": "no.target",
+            "displayOrder": 1,
+        },
+        "targetValueOne": None,
+        "targetValueTwo": None,
+        "targetValueUnit": None,
+        "zoneNumber": None,
+    }
     if hr_zone is not None:
         lo, hi = _ZONE_BPM.get(hr_zone, (100, 200))
         if hr_bpm_low is not None:
@@ -88,22 +109,29 @@ def _build_target(
         if hr_bpm_high is not None:
             hi = hr_bpm_high
         return {
-            "workoutTargetTypeId": 4,
-            "workoutTargetTypeKey": "heart.rate.zone",
-            "displayOrder": 1,
+            "targetType": {
+                "workoutTargetTypeId": 4,
+                "workoutTargetTypeKey": "heart.rate.zone",
+                "displayOrder": 4,
+            },
+            "targetValueOne": float(lo),
+            "targetValueTwo": float(hi),
+            "targetValueUnit": None,
             "zoneNumber": hr_zone,
-            "targetValueLow": float(lo),
-            "targetValueHigh": float(hi),
         }
     if hr_bpm_low is not None and hr_bpm_high is not None:
         return {
-            "workoutTargetTypeId": 4,
-            "workoutTargetTypeKey": "heart.rate.zone",
-            "displayOrder": 1,
-            "targetValueLow": float(hr_bpm_low),
-            "targetValueHigh": float(hr_bpm_high),
+            "targetType": {
+                "workoutTargetTypeId": 4,
+                "workoutTargetTypeKey": "heart.rate.zone",
+                "displayOrder": 4,
+            },
+            "targetValueOne": float(hr_bpm_low),
+            "targetValueTwo": float(hr_bpm_high),
+            "targetValueUnit": None,
+            "zoneNumber": None,
         }
-    return {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
+    return no_target
 
 
 def _build_end_condition(duration_type: str, value: float) -> tuple[dict, float]:
@@ -112,23 +140,26 @@ def _build_end_condition(duration_type: str, value: float) -> tuple[dict, float]
             {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
             float(value),
         )
-    # distance
+    # distance — Garmin's conditionTypeId for distance is 3 (not 1, which is lap.button)
     return (
-        {"conditionTypeId": 1, "conditionTypeKey": "distance", "displayOrder": 2, "displayable": True},
+        {"conditionTypeId": 3, "conditionTypeKey": "distance", "displayOrder": 3, "displayable": True},
         float(value),
     )
 
 
 def _build_executable_step(order: int, step) -> dict:
     end_cond, end_val = _build_end_condition(step.duration_type, step.duration_value)
-    return {
+    result = {
         "type": "ExecutableStepDTO",
         "stepOrder": order,
         "stepType": _STEP_TYPES[step.step_type],
         "endCondition": end_cond,
         "endConditionValue": end_val,
-        "targetType": _build_target(step.hr_zone, step.hr_bpm_low, step.hr_bpm_high),
     }
+    # Target fields (targetType, targetValueOne/Two/Unit, zoneNumber) go at the
+    # step level, not nested inside targetType.
+    result.update(_build_target(step.hr_zone, step.hr_bpm_low, step.hr_bpm_high))
+    return result
 
 
 def _build_repeat_group(order: int, iterations: int, inner_steps: list[dict]) -> dict:
@@ -288,6 +319,13 @@ class CreateRunningWorkoutInput(BaseModel):
         description="Estimated total duration in seconds (display only). Use 0 to skip.",
         ge=0,
     )
+    sport_type: str = Field(
+        default="running",
+        description=(
+            "Sport type: 'running' (default) or 'trail_running'. "
+            "Use 'trail_running' for mountain/trail runs."
+        ),
+    )
     schedule_date: Optional[str] = Field(
         default=None,
         description=(
@@ -330,15 +368,16 @@ class ScheduleWorkoutInput(BaseModel):
 async def garmin_create_running_workout(params: CreateRunningWorkoutInput) -> str:
     """Create a structured running workout on Garmin Connect and optionally schedule it."""
     try:
+        sport = _SPORT_TYPES.get(params.sport_type, _RUNNING_SPORT)
         steps = _assemble_steps(params.warmup, params.main_steps, params.cooldown)
         payload = {
             "workoutName": params.workout_name,
             "description": params.description,
-            "sportType": _RUNNING_SPORT,
+            "sportType": sport,
             "estimatedDurationInSecs": params.estimated_duration_secs,
             "workoutSegments": [{
                 "segmentOrder": 1,
-                "sportType": _RUNNING_SPORT,
+                "sportType": sport,
                 "workoutSteps": steps,
             }],
         }
